@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(um6)
 
-find_package(catkin REQUIRED COMPONENTS roscpp serial sensor_msgs message_generation)
+find_package(catkin REQUIRED COMPONENTS roscpp serial sensor_msgs message_generation tf)
 
 add_service_files(
   FILES
@@ -29,6 +29,9 @@ include_directories(include
 add_executable(um6_driver src/main.cpp src/registers.cpp src/comms.cpp)
 target_link_libraries(um6_driver ${catkin_LIBRARIES} )
 add_dependencies(um6_driver um6_generate_messages_cpp)
+
+add_executable(um6_compass src/um6_compass.cpp)
+target_link_libraries(um6_compass ${catkin_LIBRARIES})
 
 #############
 ## Install ##
