@@ -1,0 +1,6 @@
+<launch>
+<rosparam command="load" file="$(find um6)/config/test.yaml"/>
+<node pkg="um6" type="um6_compass" name="um6_compass" output="screen" respawn="true"/>
+</launch>
+
+
