@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 	ros::NodeHandle n;
 //	ros::Timer timer = n.createTimer(ros::Duration(1), callback);
 	listener = new tf::TransformListener;
-	sub = n.subscribe("imu/data", 1, callback);	
+	sub = n.subscribe("imu/data_compass", 1, callback);	
 	pub = n.advertise<geometry_msgs::PoseStamped>("pose_transformed",1000);
 	ros::spin();
 }

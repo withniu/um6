@@ -24,7 +24,7 @@ private:
 	void imuCallback(const sensor_msgs::ImuConstPtr& data);
 	void magCallback(const geometry_msgs::Vector3StampedConstPtr& data);
 	void debugCallback(const ros::TimerEvent&);
-	void repackageImuPublish();
+	void repackageImuPublish(tf::StampedTransform);
 
 	//Heading Filter functions
 	void initFilter(double heading_meas); //initialize heading fiter
@@ -106,8 +106,6 @@ void UM6Compass::debugCallback(const ros::TimerEvent&) {
 		filter_initialized = false;
 		first_mag_reading = false;
 	}
-
-
 }
 
 void UM6Compass::imuCallback(const sensor_msgs::ImuConstPtr& data) { 
@@ -184,17 +182,23 @@ void UM6Compass::magCallback(const geometry_msgs::Vector3StampedConstPtr& data) 
 
 	tf::Quaternion q;
 	tf::quaternionMsgToTF(curr_imu_reading.orientation,q);
+	tf::Transform curr_imu_meas;
+	curr_imu_meas = tf::Transform(q,tf::Vector3(0,0,0));
+	curr_imu_meas = curr_imu_meas * transform;
 
-	tf::Matrix3x3 temp(q);
+
+	//Till Compensation
+	tf::Matrix3x3 temp(curr_imu_meas.getRotation());
 	double c_r, c_p, c_y;
 	temp.getRPY(c_r, c_p, c_y);	
 	double cos_pitch = cos(c_p);
 	double sin_pitch = sin(c_p); 
 	double cos_roll = cos(c_r);
 	double sin_roll = sin(c_r);
-
-	double head_x = mag_x*cos_pitch+mag_y*sin_roll*sin_pitch+mag_z*cos_roll*sin_pitch;
-	double head_y = mag_y*cos_roll-mag_z*sin_roll;
+	double t_mag_x = mag_x*cos_pitch + mag_z*sin_pitch;
+	double t_mag_y = mag_x*sin_roll*sin_pitch + mag_y*cos_roll - mag_z*sin_roll*cos_pitch;
+	double head_x = t_mag_x;
+	double head_y = t_mag_y;
 
 
 	//Retrieve magnetometer heading 
@@ -221,22 +225,41 @@ void UM6Compass::magCallback(const geometry_msgs::Vector3StampedConstPtr& data) 
 		raw_heading_float.data = heading_meas;
 		raw_compass_pub_.publish(raw_heading_float);
 	
-		repackageImuPublish();
+		repackageImuPublish(transform);
 		gyro_update_complete = false;
 	}
 
 }
 
 
-void UM6Compass::repackageImuPublish()
+void UM6Compass::repackageImuPublish(tf::StampedTransform transform)
 {	
+
+	//Get Current IMU reading and Compass heading
 	tf::Quaternion imu_reading;
 	tf::quaternionMsgToTF(curr_imu_reading.orientation, imu_reading);
 	double compass_heading = curr_heading;
+
+	//Transform curr_imu_reading to base_link
+	tf::Transform o_imu_reading;
+    o_imu_reading = tf::Transform(imu_reading, tf::Vector3(0,0,0));
+    o_imu_reading = o_imu_reading * transform;
+	imu_reading = o_imu_reading.getRotation();
+
+
+	//Acquire Quaternion that is the difference between the two readings	
 	tf::Quaternion compass_yaw = tf::createQuaternionFromRPY(0.0,0.0,compass_heading);
 	tf::Quaternion diff_yaw = tf::createQuaternionFromRPY(0.0,0.0, compass_heading - tf::getYaw(imu_reading));
+
+	//Transform the imu reading by the difference
 	tf::Quaternion new_quaternion = diff_yaw * imu_reading;
-	tf::quaternionTFToMsg(new_quaternion, curr_imu_reading.orientation);
+
+	//Transform the imu reading back into imu_link
+	o_imu_reading = tf::Transform(new_quaternion, tf::Vector3(0,0,0));
+	o_imu_reading = o_imu_reading*(transform.inverse());
+	tf::quaternionTFToMsg(o_imu_reading.getRotation(), curr_imu_reading.orientation);
+
+	//Publish all data
 	std_msgs::Float32 curr_heading_float;
 	curr_heading_float.data = curr_heading;
 	compass_pub_.publish(curr_heading_float);	
