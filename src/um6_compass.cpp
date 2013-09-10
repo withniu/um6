@@ -126,8 +126,6 @@ void UM6Compass::imuCallback(const sensor_msgs::ImuConstPtr& data) {
 	tf::StampedTransform transform;
 
 	try {
-		//listener.waitForTransform("base_link",data->header.frame_id,ros::Time(0),ros::Duration(0.5)); 
-//		listener.transformVector("base_link",gyro_vector,gyro_vector_transformed);
 		listener.lookupTransform("base_link",data->header.frame_id,ros::Time(0),transform);
 	} catch (tf::TransformException &ex) {
 		ROS_WARN("Missed transform between base_link and %s",data->header.frame_id.c_str());
@@ -160,35 +158,47 @@ void UM6Compass::magCallback(const geometry_msgs::Vector3StampedConstPtr& data) 
 	geometry_msgs::Vector3 imu_mag = data->vector; 
 	geometry_msgs::Vector3 imu_mag_transformed;
 
-	//Compensate for hard iron
-	imu_mag.x = data->vector.x - mag_zero_x;
-	imu_mag.y = data->vector.y - mag_zero_y;
-	imu_mag.z = data->vector.z - mag_zero_z;
+	imu_mag.x = data->vector.x;
+	imu_mag.y = data->vector.y;
+	imu_mag.z = data->vector.z;
 
 	last_measurement_update_time = ros::Time::now().toSec();
 	tf::StampedTransform transform;
 	try {
-		//listener.waitForTransform("base_link",data->header.frame_id,ros::Time(0),ros::Duration(0.5)); 
-		//listener.transformVector("base_link",imu_mag,imu_mag_transformed);
 		listener.lookupTransform("base_link",data->header.frame_id, ros::Time(0),transform);
 
 	} catch (tf::TransformException &ex) {
 		ROS_WARN("Missed transform between base_link and %s",data->header.frame_id.c_str());
 		return;
 	}
-
-	//imu_mag_transform = imu_mag*transform;
 	
 	tf::Vector3 orig_bt;
 	tf::Matrix3x3 transform_mat(transform.getRotation());
 	tf::vector3MsgToTF(imu_mag, orig_bt);
 	tf::vector3TFToMsg(orig_bt*transform_mat, imu_mag_transformed);
 
-//	ROS_INFO("x,y,z:%f,%f,%f",imu_mag.vector.x,imu_mag.vector.y,imu_mag.vector.z);
-//	ROS_INFO("x,y,z:%f,%f,%f",imu_mag_transformed.vector.x,imu_mag_transformed.vector.y,imu_mag_transformed.vector.z);
+	//Compensate for hard iron
+	double mag_x = imu_mag_transformed.x - mag_zero_x;
+	double mag_y = imu_mag_transformed.y - mag_zero_y;
+	double mag_z = imu_mag_transformed.z - mag_zero_z;
+
+	tf::Quaternion q;
+	tf::quaternionMsgToTF(curr_imu_reading.orientation,q);
+
+	tf::Matrix3x3 temp(q);
+	double c_r, c_p, c_y;
+	temp.getRPY(c_r, c_p, c_y);	
+	double cos_pitch = cos(c_p);
+	double sin_pitch = sin(c_p); 
+	double cos_roll = cos(c_r);
+	double sin_roll = sin(c_r);
+
+	double head_x = mag_x*cos_pitch+mag_y*sin_roll*sin_pitch+mag_z*cos_roll*sin_pitch;
+	double head_y = mag_y*cos_roll-mag_z*sin_roll;
+
 
 	//Retrieve magnetometer heading 
-	double heading_meas = atan2(-imu_mag_transformed.y, imu_mag_transformed.x);
+	double heading_meas = atan2(head_x, head_y);
 	//If this is the first magnetometer reading, initialize filter
 	if (!first_mag_reading) {
 		//Initialize filter
@@ -200,7 +210,6 @@ void UM6Compass::magCallback(const geometry_msgs::Vector3StampedConstPtr& data) 
 	if (gyro_update_complete) {
 		double kalman_gain = heading_variance_prediction* (1/(heading_variance_prediction + yaw_meas_variance)); //K = Sp*C'*inv(C*Sp*C' + Q)
 		double innovation = heading_meas - heading_prediction;
-
 		if (abs(innovation) > PI)  //large change, signifies a wraparound. kalman filters don't like discontinuities like wraparounds, handle seperately.
 			curr_heading = heading_meas;
 		else
