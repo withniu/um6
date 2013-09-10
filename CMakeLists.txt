@@ -41,6 +41,10 @@ install(TARGETS um6_driver
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+install(PROGRAMS scripts/compute_calibration.py 
+			DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 ##########
 ## Docs ##
 ##########
