@@ -195,6 +195,6 @@ class Registers {
 
   friend class Accessor_;
 };
-}
+}  // namespace um6
 
 #endif  // INCLUDE_UM6_REGISTERS_H_

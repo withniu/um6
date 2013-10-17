@@ -81,7 +81,7 @@ class Comms {
     bool first_spin_;
     serial::Serial* serial_;
 };
-}
+}  // namespace um6
 
 #endif  // INCLUDE_UM6_COMMS_H_
 

@@ -44,4 +44,4 @@ void* Accessor_::raw() const {
    */
   return &registers_->raw_[index];
 }
-}
+}  // namespace um6

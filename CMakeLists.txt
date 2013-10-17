@@ -46,11 +46,9 @@ add_custom_target (${PROJECT_NAME}_doc
   rosdoc_lite -o ${CATKIN_DEVEL_PREFIX}/doc/${PROJECT_NAME} ${CATKIN_DEVEL_PREFIX}/../src/${PROJECT_NAME}
 )
 
-FILE(GLOB LINT_SRCS src/*.cpp include/um6/*.h)
-FILE(GLOB NOLINT_SRCS include/um6/firmware_registers.h)
-LIST(REMOVE_ITEM LINT_SRCS ${NOLINT_SRCS})
-add_custom_target(${PROJECT_NAME}_cpplint
-  COMMAND cpplint --filter=-whitespace/line_length ${LINT_SRCS})
+FILE(GLOB_RECURSE ${PROJECT_NAME}_LINT_SRCS RELATIVE ${PROJECT_SOURCE_DIR} src/*.cpp include/*.h)
+LIST(REMOVE_ITEM ${PROJECT_NAME}_LINT_SRCS include/um6/firmware_registers.h)
+roslint_cpp(${${PROJECT_NAME}_LINT_SRCS})
 
 #############
 ## Testing ##
