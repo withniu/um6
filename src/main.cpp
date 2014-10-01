@@ -174,6 +174,8 @@ bool handleResetService(um6::Comms* sensor,
  */
 void publishMsgs(um6::Registers& r, ros::NodeHandle* n, const std_msgs::Header& header)
 {
+  const double g = 9.81;
+
   static ros::Publisher imu_pub = n->advertise<sensor_msgs::Imu>("imu/data", 1, false);
   static ros::Publisher mag_pub = n->advertise<geometry_msgs::Vector3Stamped>("imu/mag", 1, false);
   static ros::Publisher rpy_pub = n->advertise<geometry_msgs::Vector3Stamped>("imu/rpy", 1, false);
@@ -185,10 +187,16 @@ void publishMsgs(um6::Registers& r, ros::NodeHandle* n, const std_msgs::Header& 
     imu_msg.header = header;
 
     // IMU outputs [w,x,y,z] NED, convert to [x,y,z,w] ENU
-    imu_msg.orientation.x = r.quat.get_scaled(2);
+//    imu_msg.orientation.x = r.quat.get_scaled(2);
+//    imu_msg.orientation.y = r.quat.get_scaled(1);
+//    imu_msg.orientation.z = -r.quat.get_scaled(3);
+//    imu_msg.orientation.w = r.quat.get_scaled(0);
+    // No conversion, To be validated
+    imu_msg.orientation.x = r.quat.get_scaled(0);
     imu_msg.orientation.y = r.quat.get_scaled(1);
-    imu_msg.orientation.z = -r.quat.get_scaled(3);
-    imu_msg.orientation.w = r.quat.get_scaled(0);
+    imu_msg.orientation.z = r.quat.get_scaled(2);
+    imu_msg.orientation.w = r.quat.get_scaled(3);
+
 
     // IMU reports a 4x4 wxyz covariance, ROS requires only 3x3 xyz.
     // NED -> ENU conversion req'd?
@@ -201,17 +209,23 @@ void publishMsgs(um6::Registers& r, ros::NodeHandle* n, const std_msgs::Header& 
     imu_msg.orientation_covariance[6] = r.covariance.get_scaled(13);
     imu_msg.orientation_covariance[7] = r.covariance.get_scaled(14);
     imu_msg.orientation_covariance[8] = r.covariance.get_scaled(15);
-
+  
     // NED -> ENU conversion.
-    imu_msg.angular_velocity.x = r.gyro.get_scaled(1);
-    imu_msg.angular_velocity.y = r.gyro.get_scaled(0);
-    imu_msg.angular_velocity.z = -r.gyro.get_scaled(2);
+//    imu_msg.angular_velocity.x = r.gyro.get_scaled(1);
+//    imu_msg.angular_velocity.y = r.gyro.get_scaled(0);
+//    imu_msg.angular_velocity.z = -r.gyro.get_scaled(2);
 
+    imu_msg.angular_velocity.x = r.gyro.get_scaled(0);
+    imu_msg.angular_velocity.y = r.gyro.get_scaled(1);
+    imu_msg.angular_velocity.z = r.gyro.get_scaled(2);
     // NED -> ENU conversion.
-    imu_msg.linear_acceleration.x = r.accel.get_scaled(1);
-    imu_msg.linear_acceleration.y = r.accel.get_scaled(0);
-    imu_msg.linear_acceleration.z = -r.accel.get_scaled(2);
+//    imu_msg.linear_acceleration.x = r.accel.get_scaled(1);
+//    imu_msg.linear_acceleration.y = r.accel.get_scaled(0);
+//    imu_msg.linear_acceleration.z = -r.accel.get_scaled(2);
 
+    imu_msg.linear_acceleration.x = r.accel.get_scaled(0) * g;
+    imu_msg.linear_acceleration.y = r.accel.get_scaled(1) * g;
+    imu_msg.linear_acceleration.z = r.accel.get_scaled(2) * g;
     imu_pub.publish(imu_msg);
   }
 
