@@ -105,9 +105,14 @@ void configureSensor(um6::Comms* sensor)
   // Enable outputs we need.
   const uint8_t UM6_BAUD_115200 = 0x5;
   uint32_t comm_reg = UM6_BROADCAST_ENABLED |
-                      UM6_GYROS_PROC_ENABLED | UM6_ACCELS_PROC_ENABLED | UM6_MAG_PROC_ENABLED |
-                      UM6_QUAT_ENABLED | UM6_EULER_ENABLED | UM6_COV_ENABLED | UM6_TEMPERATURE_ENABLED |
+                      UM6_GYROS_PROC_ENABLED | UM6_ACCELS_PROC_ENABLED | 
+//                      UM6_MAG_PROC_ENABLED |
+//                      UM6_QUAT_ENABLED | UM6_EULER_ENABLED | UM6_COV_ENABLED |
+		      UM6_TEMPERATURE_ENABLED |
+		      0x49 | // 73 * 280 / 255 + 20 = 100Hz
                       UM6_BAUD_115200 << UM6_BAUD_START_BIT;
+		     
+  std::cout << "[DEBUG] Update Rate = " << int(comm_reg & 0xFF) << std::endl;
   r.communication.set(0, comm_reg);
   if (!sensor->sendWaitAck(r.communication))
   {
@@ -174,6 +179,7 @@ bool handleResetService(um6::Comms* sensor,
  */
 void publishMsgs(um6::Registers& r, ros::NodeHandle* n, const std_msgs::Header& header)
 {
+  // Gravity m/s^2
   const double g = 9.81;
 
   static ros::Publisher imu_pub = n->advertise<sensor_msgs::Imu>("imu/data", 1, false);
@@ -191,6 +197,7 @@ void publishMsgs(um6::Registers& r, ros::NodeHandle* n, const std_msgs::Header& 
 //    imu_msg.orientation.y = r.quat.get_scaled(1);
 //    imu_msg.orientation.z = -r.quat.get_scaled(3);
 //    imu_msg.orientation.w = r.quat.get_scaled(0);
+
     // No conversion, To be validated
     imu_msg.orientation.x = r.quat.get_scaled(0);
     imu_msg.orientation.y = r.quat.get_scaled(1);
@@ -215,17 +222,17 @@ void publishMsgs(um6::Registers& r, ros::NodeHandle* n, const std_msgs::Header& 
 //    imu_msg.angular_velocity.y = r.gyro.get_scaled(0);
 //    imu_msg.angular_velocity.z = -r.gyro.get_scaled(2);
 
-    imu_msg.angular_velocity.x = -r.gyro.get_scaled(0);
-    imu_msg.angular_velocity.y = -r.gyro.get_scaled(1);
-    imu_msg.angular_velocity.z = -r.gyro.get_scaled(2);
+    imu_msg.angular_velocity.x = r.gyro.get_scaled(0);
+    imu_msg.angular_velocity.y = r.gyro.get_scaled(1);
+    imu_msg.angular_velocity.z = r.gyro.get_scaled(2);
     // NED -> ENU conversion.
 //    imu_msg.linear_acceleration.x = r.accel.get_scaled(1);
 //    imu_msg.linear_acceleration.y = r.accel.get_scaled(0);
 //    imu_msg.linear_acceleration.z = -r.accel.get_scaled(2);
 
-    imu_msg.linear_acceleration.x = -r.accel.get_scaled(0) * g;
-    imu_msg.linear_acceleration.y = -r.accel.get_scaled(1) * g;
-    imu_msg.linear_acceleration.z = -r.accel.get_scaled(2) * g;
+    imu_msg.linear_acceleration.x = r.accel.get_scaled(0) * g;
+    imu_msg.linear_acceleration.y = r.accel.get_scaled(1) * g;
+    imu_msg.linear_acceleration.z = r.accel.get_scaled(2) * g;
     imu_pub.publish(imu_msg);
   }
 
@@ -233,9 +240,13 @@ void publishMsgs(um6::Registers& r, ros::NodeHandle* n, const std_msgs::Header& 
   {
     geometry_msgs::Vector3Stamped mag_msg;
     mag_msg.header = header;
-    mag_msg.vector.x = r.mag.get_scaled(1);
-    mag_msg.vector.y = r.mag.get_scaled(0);
-    mag_msg.vector.z = -r.mag.get_scaled(2);
+//    mag_msg.vector.x = r.mag.get_scaled(1);
+//    mag_msg.vector.y = r.mag.get_scaled(0);
+//    mag_msg.vector.z = -r.mag.get_scaled(2);
+    
+    mag_msg.vector.x = r.mag.get_scaled(0);
+    mag_msg.vector.y = r.mag.get_scaled(1);
+    mag_msg.vector.z = r.mag.get_scaled(2);
     mag_pub.publish(mag_msg);
   }
 
@@ -243,9 +254,13 @@ void publishMsgs(um6::Registers& r, ros::NodeHandle* n, const std_msgs::Header& 
   {
     geometry_msgs::Vector3Stamped rpy_msg;
     rpy_msg.header = header;
-    rpy_msg.vector.x = r.euler.get_scaled(1);
-    rpy_msg.vector.y = r.euler.get_scaled(0);
-    rpy_msg.vector.z = -r.euler.get_scaled(2);
+//    rpy_msg.vector.x = r.euler.get_scaled(1);
+//    rpy_msg.vector.y = r.euler.get_scaled(0);
+//    rpy_msg.vector.z = -r.euler.get_scaled(2);
+    
+    rpy_msg.vector.x = r.euler.get_scaled(0);
+    rpy_msg.vector.y = r.euler.get_scaled(1);
+    rpy_msg.vector.z = r.euler.get_scaled(2);
     rpy_pub.publish(rpy_msg);
   }
 
