@@ -109,8 +109,8 @@ void configureSensor(um6::Comms* sensor)
 //                      UM6_MAG_PROC_ENABLED |
 //                      UM6_QUAT_ENABLED | UM6_EULER_ENABLED | UM6_COV_ENABLED |
 		      UM6_TEMPERATURE_ENABLED |
-//		      0x49 | // 73 * 280 / 255 + 20 = 100Hz
-		      0xA5 | // 165 * 280 / 255 + 20 = 200Hz
+		      0x49 | // 73 * 280 / 255 + 20 = 100Hz
+//		      0xA5 | // 165 * 280 / 255 + 20 = 200Hz
                       UM6_BAUD_115200 << UM6_BAUD_START_BIT;
 		     
   std::cout << "[DEBUG] Update Rate = " << int(comm_reg & 0xFF) << std::endl;
